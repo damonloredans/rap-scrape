@@ -1,14 +1,20 @@
 # Scraparts
 
 Fast local search for **reliableaftermarketparts.com** (a Shopify store that is slow
-to browse). It downloads the public catalogue once, keeps it in memory, and answers
-every search from there - SKU, product ID, barcode, part number or name - with the
-photos shown as small CDN thumbnails.
+to browse). It keeps a local cache of the catalogue in memory and answers searches from
+there - SKU, product ID, barcode, part number or name - with the photos shown as small
+CDN thumbnails. Anything the cache does not have is looked up on the live site
+automatically (about 0.2 s) and added to the cache.
 
-- **Search** - type a SKU / product ID / name; results update as you type (sub-millisecond lookups on the server, no page loads).
-- **Bulk check** - paste or load an **XML** file (or a plain list) and every SKU / product ID in it is checked against the site: found / not found, product, SKU, price, stock. Download the result as CSV.
+**The cache is only part of the store.** The site has roughly 500,000 products, but Shopify's
+`/products.json` stops at 25,000 (`page * limit` is capped), so `sync` fetches the newest
+25,000 in about 100 s. Everything older is found through the live fallback, and every
+live find is saved to the cache and kept across later syncs.
+
+- **Search** - type a SKU / product ID / name; cached results update as you type (sub-millisecond lookups on the server, no page loads). If there is no exact SKU hit, the live site is asked too and the results refresh.
+- **Bulk check** - paste or load an **XML** file (or a plain list) and every SKU / product ID in it is checked: found / not found, product, SKU, price, stock. Codes missing from the cache are checked live (8 at a time, up to 300 per check); those rows say "Found (live)". Download the result as CSV.
 - **Product detail** - gallery, every variant with SKU / barcode / price / stock, copy buttons, link to the real page, and *Refresh live* to pull the current price + stock for that one item.
-- **Ask the live site** - when something is newer than your last sync, one click queries the store directly (Shopify predictive search) and adds the hits.
+- **Ask the live site** - the same live query as a button, for when the automatic one found nothing.
 
 It only reads public storefront endpoints (`/products.json`, `/products/<handle>.js`,
 `/search/suggest.json`, `sitemap.xml`). No login, no credentials.
@@ -75,8 +81,8 @@ JSON API:
 | `GET /api/status` | counts, last sync time, sync progress |
 | `GET /api/search?q=&limit=` | ranked cards: exact SKU > SKU prefix > SKU contains > name tokens |
 | `GET /api/product/<id\|handle>[?live=1]` | full record; `live=1` re-reads it from the store |
-| `GET /api/live-search?q=` | asks the store itself |
-| `POST /api/lookup` | body = XML or a list; returns per-code results |
+| `GET /api/live-search?q=` | asks the store itself, caches the hits (`new` = how many were not cached before) |
+| `POST /api/lookup` | body = XML or a list; per-code results, uncached codes checked live (`source` = `cache` or `live`) |
 | `POST /api/sync` | start a background sync |
 
 The server binds to `127.0.0.1` by default. To serve it to other machines use
@@ -90,7 +96,7 @@ python -m unittest discover -s tests -v
 ```
 
 The tests run against a local fake Shopify store (pagination, both product shapes,
-sitemap fallback, live endpoints) - no internet needed.
+sitemap fallback, live endpoints, live fallback for uncached products) - no internet needed.
 
 ## Files
 

@@ -201,7 +201,7 @@ textarea { width: 100%; min-height: 150px; padding: 10px; border-radius: 10px; b
         ? `Syncing the site… ${sync.count} products`
         : sync.error ? `Sync failed: ${sync.error}`
         : s.products ? `${s.products.toLocaleString()} products cached · ${s.variants.toLocaleString()} SKUs · synced ${ago(s.synced_at)} · anything else is looked up live`
-        : 'No cache yet — press Sync (searches still work live)';
+        : 'No cache yet, press Sync (searches still work live)';
       if (sync.running && !polling) polling = setInterval(refreshStatus, 1000);
       if (!sync.running && polling) { clearInterval(polling); polling = null; if (!sync.error) runSearch(); }
       return s;
@@ -310,8 +310,8 @@ textarea { width: 100%; min-height: 150px; padding: 10px; border-radius: 10px; b
         const tr = el('tr');
         const hit = q && [v.sku, v.barcode, String(v.id)].some(x => x && x.toLowerCase().replace(/[^a-z0-9]/g, '').includes(q));
         if (hit) tr.className = 'hit';
-        tr.append(el('td', null, v.title || '—'));
-        const sku = el('td', 'mono', v.sku || '—');
+        tr.append(el('td', null, v.title || '-'));
+        const sku = el('td', 'mono', v.sku || '-');
         if (v.sku) { const c = el('button', 'copy', 'copy'); c.type = 'button'; c.onclick = () => navigator.clipboard && navigator.clipboard.writeText(v.sku); sku.append(c); }
         tr.append(sku, el('td', 'mono', v.barcode || ''), el('td', null, money(v.price)),
           el('td', null, v.available == null ? '' : v.available ? 'In stock' : 'Out'));

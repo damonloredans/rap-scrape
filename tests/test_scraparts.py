@@ -7,6 +7,7 @@ import os
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -139,6 +140,16 @@ class TestSync(Base):
         self.assertEqual(p["variants"][0]["price"], 19.5)  # cents -> dollars
         self.assertTrue(p["images"][0]["src"].startswith("https://cdn.shopify.com"))  # '//' fixed up
 
+    def test_sync_keeps_older_products_found_live(self):
+        older = scraparts.compact(product(900, "old-thing", "Old Thing", ["OLD-900"]), self.site)
+        scraparts.save_catalog(scraparts.Catalog([older], 1.0))
+        try:
+            cat = scraparts.sync(site=self.site)
+            self.assertEqual(len(cat.products), 5)
+            self.assertEqual(cat.get("old-thing")["variants"][0]["sku"], "OLD-900")
+        finally:
+            os.remove(scraparts.CATALOG_FILE)
+
     def test_empty_site_keeps_old_catalogue(self):
         FakeShop.page_size = 0
         try:
@@ -266,6 +277,29 @@ class TestServer(Base):
         j = requests.post(self.api + "/api/lookup", json={"text": "rr2002\nzzz"}).json()
         self.assertEqual(j["found"], 1)
         self.assertEqual(requests.post(self.api + "/api/lookup", data="<!DOCTYPE a [<!ENTITY b 'c'>]><a/>").status_code, 400)
+
+    def test_lookup_falls_back_to_live_for_uncached_products(self):
+        # a cache holding only the first two products stands in for "the newest 25k"
+        cat = scraparts.Catalog([scraparts.compact(p, self.site) for p in PRODUCTS[:2]])
+        r = scraparts.lookup(cat, ["OF 3003", "NOPE-9", "BP-1001-F"], live=True)
+        self.assertEqual([(x["query"], x["found"], x["source"]) for x in r["rows"]],
+                         [("OF 3003", True, "live"), ("NOPE-9", False, "cache"), ("BP-1001-F", True, "cache")])
+        self.assertEqual(r["live_checked"], 2)
+        self.assertEqual(len(cat.products), 3)  # the live find is now cached
+        self.assertEqual(scraparts.lookup(cat, ["OF 3003"], live=True)["rows"][0]["source"], "cache")
+        # without live=True nothing leaves the process
+        self.assertFalse(scraparts.lookup(scraparts.Catalog(), ["OF 3003"])["rows"][0]["found"])
+
+    def test_live_search_reports_new_products(self):
+        scraparts.STATE.catalog = scraparts.Catalog([scraparts.compact(PRODUCTS[0], self.site)])
+        scraparts.STATE.saved_at = time.time()  # keep persist_soon from touching the disk mid-test
+        try:
+            r = requests.get(self.api + "/api/live-search", params={"q": "ford"}).json()
+            self.assertEqual((r["new"], [c["handle"] for c in r["results"]]), (1, ["oil-filter"]))
+            self.assertEqual(requests.get(self.api + "/api/live-search", params={"q": "ford"}).json()["new"], 0)
+            self.assertEqual(scraparts.STATE.catalog.exact("OF 3003")[0]["product"]["handle"], "oil-filter")
+        finally:
+            scraparts.STATE.catalog = scraparts.sync(site=self.site)
 
     def test_live_refresh_and_live_search(self):
         p = requests.get(self.api + "/api/product/oil-filter", params={"live": 1}).json()
