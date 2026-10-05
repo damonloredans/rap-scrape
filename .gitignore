@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.log
+.env
+
+# synced catalogue (re-created by `sync`)
+data/

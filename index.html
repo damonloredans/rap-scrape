@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scraparts</title>
+<style>
+:root {
+  --bg: #f5f6f8; --panel: #fff; --ink: #14181f; --muted: #6a7482; --line: #e1e5eb;
+  --accent: #0b6e69; --accent-ink: #fff; --ok: #1a7f4b; --bad: #b3261e; --warn: #9a6700;
+  --chip: #eef1f5; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1418; --panel: #162026; --ink: #e8eef2; --muted: #8b99a5; --line: #243239;
+    --accent: #3cc2b8; --accent-ink: #062321; --ok: #5ad196; --bad: #ff8a80; --warn: #e3b341;
+    --chip: #1d2a31; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1418; --panel: #162026; --ink: #e8eef2; --muted: #8b99a5; --line: #243239;
+  --accent: #3cc2b8; --accent-ink: #062321; --ok: #5ad196; --bad: #ff8a80; --warn: #e3b341;
+  --chip: #1d2a31; --shadow: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+button, input, textarea { font: inherit; color: inherit; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 14px 16px 40px; }
+
+header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
+.status { color: var(--muted); font-size: 12px; flex: 1; min-width: 160px; }
+.btn { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; color: inherit; text-decoration: none; display: inline-block; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn:disabled { opacity: .55; cursor: default; }
+.tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.tab { background: none; border: 0; padding: 7px 14px; border-radius: 8px; cursor: pointer; color: var(--muted); font-weight: 600; }
+.tab[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+
+.search { display: flex; gap: 8px; }
+.search input { flex: 1; padding: 12px 14px; font-size: 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); outline: none; }
+.search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.meta { color: var(--muted); font-size: 12px; margin: 10px 2px; min-height: 18px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; text-align: left; padding: 0; box-shadow: var(--shadow); }
+.card:hover, .card:focus-visible { border-color: var(--accent); outline: none; }
+.thumb { aspect-ratio: 1; background: var(--chip); display: grid; place-items: center; color: var(--muted); font-size: 12px; }
+.thumb img { width: 100%; height: 100%; object-fit: contain; display: block; background: #fff; }
+.card .body { padding: 9px 10px 11px; display: flex; flex-direction: column; gap: 4px; }
+.title { font-weight: 600; font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sku { font: 12px ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sku mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.price { font-weight: 700; }
+.badge { font-size: 11px; padding: 2px 7px; border-radius: 99px; background: var(--chip); color: var(--muted); }
+.badge.ok { color: var(--ok); } .badge.bad { color: var(--bad); }
+.empty { text-align: center; color: var(--muted); padding: 50px 10px; }
+.empty .btn { margin-top: 10px; }
+
+/* detail */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: none; z-index: 10; overflow-y: auto; }
+.overlay.open { display: block; }
+.panel { background: var(--panel); max-width: 980px; margin: 24px auto; border-radius: 14px; padding: 18px; position: relative; }
+.close { position: absolute; top: 10px; right: 10px; }
+.detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+@media (max-width: 760px) { .detail { grid-template-columns: 1fr; } .panel { margin: 0; border-radius: 0; min-height: 100%; } }
+.main-img { aspect-ratio: 1; background: #fff; border: 1px solid var(--line); border-radius: 10px; display: grid; place-items: center; overflow: hidden; }
+.main-img img { width: 100%; height: 100%; object-fit: contain; }
+.thumbs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.thumbs button { width: 58px; height: 58px; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; background: #fff; cursor: pointer; }
+.thumbs button[aria-current="true"] { border-color: var(--accent); }
+.thumbs img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.detail h2 { margin: 0 0 4px; font-size: 20px; padding-right: 60px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.chip { background: var(--chip); border-radius: 99px; padding: 2px 9px; font-size: 12px; color: var(--muted); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; }
+td.mono, .mono { font: 12px ui-monospace, SFMono-Regular, Consolas, monospace; }
+tr.hit { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.copy { background: none; border: 0; cursor: pointer; color: var(--accent); padding: 0 0 0 6px; font-size: 12px; }
+.desc { white-space: pre-line; color: var(--muted); font-size: 13px; margin-top: 12px; max-height: 180px; overflow: auto; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* bulk */
+textarea { width: 100%; min-height: 150px; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); resize: vertical; font: 13px ui-monospace, SFMono-Regular, Consolas, monospace; }
+.bulk-bar { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; align-items: center; }
+.found { color: var(--ok); font-weight: 600; } .miss { color: var(--bad); font-weight: 600; }
+.mini { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.mini img { width: 36px; height: 36px; object-fit: contain; background: #fff; border-radius: 6px; border: 1px solid var(--line); }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Scraparts</h1>
+    <div class="status" id="status">connecting…</div>
+    <button class="btn" id="syncBtn" title="Re-download the catalogue from the site">Sync</button>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tabSearch" aria-selected="true">Search</button>
+    <button class="tab" role="tab" id="tabBulk" aria-selected="false">Bulk check (XML / list)</button>
+  </div>
+
+  <section id="paneSearch">
+    <div class="search">
+      <input id="q" type="search" placeholder="SKU, product ID, part number or name   ( / )" autocomplete="off" autofocus>
+    </div>
+    <div class="meta" id="meta"></div>
+    <div class="grid" id="grid"></div>
+    <div class="empty hidden" id="empty"></div>
+  </section>
+
+  <section id="paneBulk" class="hidden">
+    <textarea id="bulkText" placeholder="Paste XML (any feed or export that contains &lt;sku&gt;, &lt;product-id&gt;, &lt;id&gt; …) or a list of SKUs / product IDs, one per line or comma separated."></textarea>
+    <div class="bulk-bar">
+      <button class="btn primary" id="bulkGo">Check</button>
+      <label class="btn">Load file… <input type="file" id="bulkFile" accept=".xml,.txt,.csv,text/*" hidden></label>
+      <button class="btn hidden" id="bulkCsv">Download CSV</button>
+      <span class="meta" id="bulkMeta"></span>
+    </div>
+    <table id="bulkTable" class="hidden">
+      <thead><tr><th>Code</th><th>Result</th><th>Product</th><th>SKU</th><th>Price</th><th>Stock</th></tr></thead>
+      <tbody id="bulkBody"></tbody>
+    </table>
+  </section>
+</div>
+
+<div class="overlay" id="overlay" aria-hidden="true">
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+    <button class="btn close" id="dClose">Close</button>
+    <div class="detail">
+      <div>
+        <div class="main-img"><img id="dMain" alt=""></div>
+        <div class="thumbs" id="dThumbs"></div>
+      </div>
+      <div>
+        <h2 id="dTitle"></h2>
+        <div class="chips" id="dChips"></div>
+        <table>
+          <thead><tr><th>Variant</th><th>SKU</th><th>Barcode</th><th>Price</th><th>Stock</th></tr></thead>
+          <tbody id="dVariants"></tbody>
+        </table>
+        <div class="actions">
+          <a class="btn" id="dSite" target="_blank" rel="noopener">Open on site ↗</a>
+          <button class="btn" id="dLive">Refresh live</button>
+          <button class="btn" id="dCopyId">Copy product ID</button>
+        </div>
+        <div class="desc" id="dDesc"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // API base: ?api=https://host:8765  |  window.SCRAPARTS_API  |  same origin
+  const params = new URLSearchParams(location.search);
+  const API = (params.get('api') || window.SCRAPARTS_API || '').replace(/\/$/, '');
+  if (params.get('theme') === 'dark' || params.get('theme') === 'light') document.documentElement.dataset.theme = params.get('theme');
+
+  const $ = id => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const money = n => n == null ? '' : '$' + Number(n).toFixed(2);
+  const range = p => p.price_min == null ? '' : p.price_min === p.price_max ? money(p.price_min) : money(p.price_min) + '–' + money(p.price_max);
+
+  // Shopify's CDN resizes on the fly: ask for a thumbnail, never the 2000px original.
+  const img = (src, w) => src ? src + (src.includes('?') ? '&' : '?') + 'width=' + w : '';
+  function setImg(node, src, w) {
+    node.loading = 'lazy'; node.decoding = 'async';
+    if (!src) return;
+    node.src = img(src, w);
+    node.srcset = img(src, w) + ' 1x, ' + img(src, w * 2) + ' 2x';
+  }
+
+  async function api(path, opts) {
+    const r = await fetch(API + path, opts);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    return j;
+  }
+
+  // ---- status / sync ------------------------------------------------------
+  let polling = null;
+  const ago = t => {
+    if (!t) return 'never';
+    const s = Math.max(0, Date.now() / 1000 - t);
+    return s < 90 ? 'just now' : s < 5400 ? Math.round(s / 60) + ' min ago' : s < 129600 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' d ago';
+  };
+  async function refreshStatus() {
+    try {
+      const s = await api('/api/status');
+      const sync = s.sync || {};
+      $('syncBtn').disabled = sync.running;
+      $('syncBtn').textContent = sync.running ? 'Syncing…' : 'Sync';
+      $('status').textContent = sync.running
+        ? `Syncing the site… ${sync.count} products`
+        : sync.error ? `Sync failed: ${sync.error}`
+        : s.products ? `${s.products.toLocaleString()} products cached · ${s.variants.toLocaleString()} SKUs · synced ${ago(s.synced_at)} · anything else is looked up live`
+        : 'No cache yet — press Sync (searches still work live)';
+      if (sync.running && !polling) polling = setInterval(refreshStatus, 1000);
+      if (!sync.running && polling) { clearInterval(polling); polling = null; if (!sync.error) runSearch(); }
+      return s;
+    } catch (e) {
+      $('status').textContent = 'Cannot reach the scraparts server (' + e.message + ')';
+    }
+  }
+  $('syncBtn').onclick = async () => { await api('/api/sync', { method: 'POST' }).catch(() => {}); refreshStatus(); };
+
+  // ---- search -------------------------------------------------------------
+  let ctl = null, timer = null, lastQ = '';
+  function highlight(text, q) {
+    const frag = document.createDocumentFragment();
+    const i = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
+    if (i < 0) { frag.append(text); return frag; }
+    frag.append(text.slice(0, i));
+    frag.append(el('mark', null, text.slice(i, i + q.length)));
+    frag.append(text.slice(i + q.length));
+    return frag;
+  }
+  function renderCard(p, q) {
+    const b = el('button', 'card'); b.type = 'button';
+    const t = el('div', 'thumb');
+    if (p.image) { const i = new Image(); i.alt = p.title; setImg(i, p.image, 360); t.append(i); } else t.textContent = 'no photo';
+    const body = el('div', 'body');
+    body.append(el('div', 'title', p.title));
+    const sku = el('div', 'sku');
+    const shown = p.skus.length ? p.skus.slice(0, 2).join(' · ') + (p.n_variants > 2 ? ` +${p.n_variants - 2}` : '') : 'no SKU';
+    sku.append(highlight(shown, q));
+    body.append(sku);
+    const row = el('div', 'row');
+    row.append(el('span', 'price', range(p)));
+    row.append(p.available == null ? el('span') : el('span', 'badge ' + (p.available ? 'ok' : 'bad'), p.available ? 'In stock' : 'Out'));
+    body.append(row);
+    b.append(t, body);
+    b.onclick = () => openDetail(p.id);
+    return b;
+  }
+  // The cache only holds the newest products; when it has no exact SKU hit, ask the
+  // live site (fast predictive search, ~0.2 s), cache what it returns and search again.
+  let liveCtl = null, liveTimer = null;
+  const liveDone = new Set();
+  const hasExact = rs => rs.some(p => p.score >= 100);
+  function scheduleLive(q) {
+    clearTimeout(liveTimer);
+    if (liveCtl) liveCtl.abort();
+    if (q.replace(/[^a-z0-9]/gi, '').length < 4 || liveDone.has(q.toLowerCase())) return;
+    liveTimer = setTimeout(async () => {
+      liveCtl = new AbortController();
+      const base = $('meta').textContent;
+      $('meta').textContent = base + ' · checking the live site…';
+      try {
+        const r = await api('/api/live-search?q=' + encodeURIComponent(q), { signal: liveCtl.signal });
+        liveDone.add(q.toLowerCase());
+        if (q === lastQ) { if (r.new) await runSearch(true); else $('meta').textContent = base; }
+      } catch (e) { if (e.name !== 'AbortError') $('meta').textContent = base; }
+    }, 350);
+  }
+  async function runSearch(noLive) {
+    const q = $('q').value.trim();
+    lastQ = q;
+    if (ctl) ctl.abort();
+    if (!q) { clearTimeout(liveTimer); $('grid').replaceChildren(); $('meta').textContent = ''; showEmpty('Type a SKU, product ID, part number or name.'); return; }
+    ctl = new AbortController();
+    try {
+      const r = await api('/api/search?limit=48&q=' + encodeURIComponent(q), { signal: ctl.signal });
+      $('grid').replaceChildren(...r.results.map(p => renderCard(p, q)));
+      $('meta').textContent = `${r.results.length}${r.results.length === 48 ? '+' : ''} result${r.results.length === 1 ? '' : 's'} · ${r.ms} ms`;
+      if (!r.results.length) showEmpty('Nothing cached for “' + q + '”.', true); else $('empty').classList.add('hidden');
+      if (!noLive && !hasExact(r.results)) scheduleLive(q);
+    } catch (e) { if (e.name !== 'AbortError') $('meta').textContent = e.message; }
+  }
+  function showEmpty(msg, offerLive) {
+    const e = $('empty'); e.classList.remove('hidden'); e.replaceChildren(el('div', null, msg));
+    if (offerLive) {
+      const b = el('button', 'btn', 'Ask the live site'); b.type = 'button';
+      b.onclick = async () => {
+        b.disabled = true; b.textContent = 'Asking the site…';
+        try {
+          const r = await api('/api/live-search?q=' + encodeURIComponent(lastQ));
+          if (r.results.length) { runSearch(true); } else { b.textContent = 'Not on the site either'; }
+        } catch (err) { b.textContent = err.message; }
+      };
+      e.append(b);
+    }
+  }
+  $('q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(runSearch, 70); });
+  $('q').addEventListener('input', () => { const u = new URL(location.href); $('q').value ? u.searchParams.set('q', $('q').value) : u.searchParams.delete('q'); history.replaceState(null, '', u); });
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') { e.preventDefault(); $('q').focus(); }
+    if (e.key === 'Escape') closeDetail();
+  });
+
+  // ---- detail -------------------------------------------------------------
+  let current = null;
+  async function openDetail(id, live) {
+    try {
+      const p = await api('/api/product/' + encodeURIComponent(id) + (live ? '?live=1' : ''));
+      current = p;
+      $('dTitle').textContent = p.title;
+      const chips = $('dChips'); chips.replaceChildren();
+      [p.vendor, p.type, 'ID ' + p.id].filter(Boolean).forEach(c => chips.append(el('span', 'chip', c)));
+      const q = lastQ.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const tb = $('dVariants'); tb.replaceChildren();
+      p.variants.forEach(v => {
+        const tr = el('tr');
+        const hit = q && [v.sku, v.barcode, String(v.id)].some(x => x && x.toLowerCase().replace(/[^a-z0-9]/g, '').includes(q));
+        if (hit) tr.className = 'hit';
+        tr.append(el('td', null, v.title || '—'));
+        const sku = el('td', 'mono', v.sku || '—');
+        if (v.sku) { const c = el('button', 'copy', 'copy'); c.type = 'button'; c.onclick = () => navigator.clipboard && navigator.clipboard.writeText(v.sku); sku.append(c); }
+        tr.append(sku, el('td', 'mono', v.barcode || ''), el('td', null, money(v.price)),
+          el('td', null, v.available == null ? '' : v.available ? 'In stock' : 'Out'));
+        tb.append(tr);
+      });
+      $('dSite').href = p.url;
+      $('dDesc').textContent = p.desc || '';
+      const th = $('dThumbs'); th.replaceChildren();
+      const show = i => {
+        setImg($('dMain'), p.images[i] && p.images[i].src, 900);
+        $('dMain').alt = p.title;
+        [...th.children].forEach((b, j) => b.setAttribute('aria-current', j === i));
+      };
+      if (!p.images.length) { $('dMain').removeAttribute('src'); $('dMain').removeAttribute('srcset'); }
+      p.images.forEach((im, i) => {
+        const b = el('button'); b.type = 'button';
+        const t = new Image(); t.alt = ''; setImg(t, im.src, 120);
+        b.append(t); b.onclick = () => show(i); th.append(b);
+      });
+      if (p.images.length) show(0);
+      $('overlay').classList.add('open'); $('overlay').setAttribute('aria-hidden', 'false');
+    } catch (e) { $('meta').textContent = e.message; }
+  }
+  function closeDetail() { $('overlay').classList.remove('open'); $('overlay').setAttribute('aria-hidden', 'true'); }
+  $('dClose').onclick = closeDetail;
+  $('overlay').addEventListener('click', e => { if (e.target === $('overlay')) closeDetail(); });
+  $('dLive').onclick = async () => { if (!current) return; $('dLive').textContent = 'Refreshing…'; await openDetail(current.id, true); $('dLive').textContent = 'Refresh live'; };
+  $('dCopyId').onclick = () => current && navigator.clipboard && navigator.clipboard.writeText(String(current.id));
+
+  // ---- tabs + bulk --------------------------------------------------------
+  function tab(which) {
+    const bulk = which === 'bulk';
+    $('paneSearch').classList.toggle('hidden', bulk); $('paneBulk').classList.toggle('hidden', !bulk);
+    $('tabSearch').setAttribute('aria-selected', !bulk); $('tabBulk').setAttribute('aria-selected', bulk);
+  }
+  $('tabSearch').onclick = () => tab('search'); $('tabBulk').onclick = () => tab('bulk');
+  $('bulkFile').onchange = async e => { const f = e.target.files[0]; if (f) { $('bulkText').value = await f.text(); $('bulkGo').click(); } };
+
+  let bulkRows = [];
+  $('bulkGo').onclick = async () => {
+    const text = $('bulkText').value;
+    if (!text.trim()) return;
+    $('bulkMeta').textContent = 'Checking… (codes not in the cache are asked of the live site)';
+    try {
+      const r = await api('/api/lookup', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: text });
+      bulkRows = r.rows;
+      const nLive = r.rows.filter(x => x.source === 'live').length;
+      $('bulkMeta').textContent = `${r.found} of ${r.total} found` + (nLive ? ` · ${nLive} via live site` : '')
+        + (r.live_skipped ? ` · ${r.live_skipped} unknown codes not checked live (limit ${r.live_checked})` : '');
+      const body = $('bulkBody'); body.replaceChildren();
+      r.rows.forEach(row => {
+        const list = row.found ? row.matches : [null];
+        list.forEach((m, i) => {
+          const tr = el('tr');
+          tr.append(el('td', 'mono', i === 0 ? row.query : ''));
+          tr.append(el('td', row.found ? 'found' : 'miss', i === 0 ? (row.found ? (row.source === 'live' ? 'Found (live)' : 'Found') : 'Not found') : (m ? m.kind : '')));
+          const td = el('td');
+          if (m) {
+            const d = el('div', 'mini');
+            const im = new Image(); im.alt = ''; setImg(im, m.image, 72);
+            d.append(im, el('span', null, m.title)); d.onclick = () => openDetail(m.id);
+            td.append(d);
+          } else if (row.similar && row.similar.length) {
+            td.append(el('span', 'meta', 'Similar: ' + row.similar.map(s => s.skus[0] || s.title).join(', ')));
+          }
+          tr.append(td);
+          const v = m && m.variant;
+          tr.append(el('td', 'mono', m ? (v ? v.sku : m.skus.join(' · ')) : ''), el('td', null, m ? (v ? money(v.price) : range(m)) : ''),
+            el('td', null, m ? ((v ? v.available : m.available) == null ? '' : (v ? v.available : m.available) ? 'In stock' : 'Out') : ''));
+          body.append(tr);
+        });
+      });
+      $('bulkTable').classList.remove('hidden'); $('bulkCsv').classList.remove('hidden');
+    } catch (e) { $('bulkMeta').textContent = e.message; }
+  };
+  $('bulkCsv').onclick = () => {
+    const esc = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
+    const lines = [['code', 'found', 'match', 'product_id', 'title', 'sku', 'price', 'available', 'url'].join(',')];
+    bulkRows.forEach(r => {
+      if (!r.found) { lines.push([r.query, 'no', '', '', '', '', '', '', ''].map(esc).join(',')); return; }
+      r.matches.forEach(m => { const v = m.variant || {}; lines.push([r.query, 'yes', m.kind, m.id, m.title, v.sku || m.skus.join(' | '), v.price != null ? v.price : m.price_min, v.available != null ? v.available : m.available, m.url].map(esc).join(',')); });
+    });
+    const a = el('a'); a.href = URL.createObjectURL(new Blob([lines.join('\r\n')], { type: 'text/csv' })); a.download = 'scraparts-check.csv'; a.click();
+  };
+
+  // ---- boot ---------------------------------------------------------------
+  const q0 = params.get('q');
+  if (q0) $('q').value = q0;
+  refreshStatus().then(() => runSearch());
+})();
+</script>
+</body>
+</html>
