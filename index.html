@@ -160,7 +160,8 @@ textarea { width: 100%; min-height: 150px; padding: 10px; border-radius: 10px; b
 (() => {
   // API base: ?api=https://host:8765  |  window.SCRAPARTS_API  |  same origin
   const params = new URLSearchParams(location.search);
-  const API = (params.get('api') || window.SCRAPARTS_API || '').replace(/\/$/, '');
+  // opened straight from disk (file://) there is no same-origin server, so use the local default
+  const API = (params.get('api') || window.SCRAPARTS_API || (location.protocol === 'file:' ? 'http://127.0.0.1:8765' : '')).replace(/\/$/, '');
   if (params.get('theme') === 'dark' || params.get('theme') === 'light') document.documentElement.dataset.theme = params.get('theme');
 
   const $ = id => document.getElementById(id);
@@ -178,7 +179,12 @@ textarea { width: 100%; min-height: 150px; padding: 10px; border-radius: 10px; b
   }
 
   async function api(path, opts) {
-    const r = await fetch(API + path, opts);
+    let r;
+    try { r = await fetch(API + path, opts); }
+    catch (e) {
+      if (e.name === 'AbortError') throw e;
+      throw new Error('Cannot reach the scraparts server at ' + (API || location.origin) + '. Start it with run.bat (or: python scraparts.py serve).');
+    }
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
     return j;
@@ -206,7 +212,7 @@ textarea { width: 100%; min-height: 150px; padding: 10px; border-radius: 10px; b
       if (!sync.running && polling) { clearInterval(polling); polling = null; if (!sync.error) runSearch(); }
       return s;
     } catch (e) {
-      $('status').textContent = 'Cannot reach the scraparts server (' + e.message + ')';
+      $('status').textContent = e.message;
     }
   }
   $('syncBtn').onclick = async () => { await api('/api/sync', { method: 'POST' }).catch(() => {}); refreshStatus(); };
